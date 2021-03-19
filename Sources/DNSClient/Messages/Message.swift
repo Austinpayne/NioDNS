@@ -77,6 +77,7 @@ public enum Record {
     case a(ResourceRecord<ARecord>)
     case txt(ResourceRecord<TXTRecord>)
     case srv(ResourceRecord<SRVRecord>)
+    case ptr(ResourceRecord<PTRRecord>)
     case other(ResourceRecord<ByteBuffer>)
 }
 
@@ -86,15 +87,18 @@ public struct TXTRecord: DNSResource {
     public let value: String
     
     init?(text: String) {
-        let parts = text.split(separator: "=")
-        
-        if parts.count != 2 {
-            return nil
-        }
-        
         self.text = text
-        self.key = String(parts[0])
-        self.value = String(parts[1])
+
+        // Key-value TXT records are common but RFC 1035 does not specify the format
+        // See: https://tools.ietf.org/html/rfc1035 section 3.3.14
+        let parts = text.split(separator: "=")
+        if parts.count != 2 {
+            self.key = ""
+            self.value = ""
+        } else {
+            self.key = String(parts[0])
+            self.value = String(parts[1])
+        }
     }
 
     public static func read(from buffer: inout ByteBuffer, length: Int) -> TXTRecord? {
@@ -109,10 +113,10 @@ public struct TXTRecord: DNSResource {
 public struct ARecord: DNSResource {
     public let address: UInt32
     public var stringAddress: String {
-        return withUnsafeBytes(of: address) { buffer in
-            let buffer = buffer.bindMemory(to: UInt8.self)
-            return "\(buffer[0]).\(buffer[1]).\(buffer[2]).\(buffer[3])"
+        guard let addr = try? address.socketAddress(port: 0) else {
+            return ""
         }
+        return addr.ipAddress ?? ""
     }
 
     public static func read(from buffer: inout ByteBuffer, length: Int) -> ARecord? {
@@ -123,13 +127,28 @@ public struct ARecord: DNSResource {
 
 public struct AAAARecord: DNSResource {
     public let address: [UInt8]
-//    public var stringAddress: String {
-//        // TODO
-//    }
+    public var stringAddress: String {
+        guard let addr = try? address.socketAddress(port: 0) else {
+            return ""
+        }
+        return addr.ipAddress ?? ""
+    }
 
     public static func read(from buffer: inout ByteBuffer, length: Int) -> AAAARecord? {
         guard let address = buffer.readBytes(length: 16) else { return nil }
         return AAAARecord(address: address)
+    }
+}
+
+public struct PTRRecord: DNSResource {
+    public let domainName: [DNSLabel]
+
+    public static func read(from buffer: inout ByteBuffer, length: Int) -> PTRRecord? {
+        guard let domainName = buffer.readLabels() else {
+            return nil
+        }
+
+        return PTRRecord(domainName: domainName)
     }
 }
 
@@ -181,10 +200,39 @@ extension ResourceRecord where Resource == ByteBuffer {
 
 extension UInt32 {
     func socketAddress(port: Int) throws -> SocketAddress {
-        let text = inet_ntoa(in_addr(s_addr: self.bigEndian))!
-        let host = String(cString: text)
+        var host = ""
+        if let text = inet_ntoa(in_addr(s_addr: self.bigEndian)) {
+            host = String(cString: text)
+        }
         
         return try SocketAddress(ipAddress: host, port: port)
+    }
+}
+
+typealias s6_addr = (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+extension Array where Element == UInt8 {
+    func socketAddress(port: Int) throws -> SocketAddress {
+        if self.count != 16 {
+            throw SocketAddressError.unsupported
+        }
+        let size = Int(INET6_ADDRSTRLEN)
+        let buffer = UnsafeMutablePointer<Int8>.allocate(capacity: size)
+        buffer.initialize(repeating: 0, count: size)
+        defer {
+            buffer.deinitialize(count: size)
+            buffer.deallocate()
+        }
+
+        return try self.withUnsafeBytes {
+            let ptr = $0.bindMemory(to: s6_addr.self)[0]
+            var addr = in6_addr(__in6_u: .init(__u6_addr8: ptr))
+            var host = ""
+            if let text = inet_ntop(AF_INET6, &addr, buffer, socklen_t(size)) {
+                host = String(cString: text)
+            }
+
+            return try SocketAddress(ipAddress: host, port: port)
+        }
     }
 }
 
