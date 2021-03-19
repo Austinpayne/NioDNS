@@ -35,7 +35,24 @@ public struct DNSClientContext {
     }
 }
 
+public enum CallbackSignal {
+    case `continue`
+    case done
+}
+
+public func defaultCallback(_ message: Message, _ loop: EventLoop) -> EventLoopFuture<CallbackSignal> {
+    return loop.makeSucceededFuture(.done)
+}
+
+public typealias QueryCallback = (Message, EventLoop) -> EventLoopFuture<CallbackSignal>
 struct SentQuery {
     let message: Message
     let promise: EventLoopPromise<Message>
+    let callback: QueryCallback
+
+    init(message: Message, promise: EventLoopPromise<Message>, callback: @escaping QueryCallback = defaultCallback) {
+        self.message = message
+        self.promise = promise
+        self.callback = callback
+    }
 }

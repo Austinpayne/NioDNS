@@ -77,7 +77,7 @@ extension DNSClient {
     ///     - type: The resource you want to request
     ///     - additionalOptions: Additional message options
     /// - returns: A future with the response message
-    public func sendQuery(forHost address: String, type: DNSResourceType, additionalOptions: MessageOptions? = nil) -> EventLoopFuture<Message> {
+    public func sendQuery(forHost address: String, type: DNSResourceType, additionalOptions: MessageOptions? = nil, callback: @escaping QueryCallback = defaultCallback) -> EventLoopFuture<Message> {
         messageID = messageID &+ 1
 
         var options: MessageOptions = [.standardQuery, .recursionDesired]
@@ -90,12 +90,12 @@ extension DNSClient {
         let question = QuestionSection(labels: labels, type: type, questionClass: .internet)
         let message = Message(header: header, questions: [question], answers: [], authorities: [], additionalData: [])
 
-        return send(message)
+        return send(message, callback: callback)
     }
 
-    func send(_ message: Message, to address: SocketAddress? = nil) -> EventLoopFuture<Message> {
+    func send(_ message: Message, to address: SocketAddress? = nil, callback: @escaping QueryCallback = defaultCallback) -> EventLoopFuture<Message> {
         let promise: EventLoopPromise<Message> = loop.makePromise()
-        dnsDecoder.messageCache[message.header.id] = SentQuery(message: message, promise: promise)
+        dnsDecoder.messageCache[message.header.id] = SentQuery(message: message, promise: promise, callback: callback)
         
         channel.writeAndFlush(message, promise: nil)
         

@@ -71,9 +71,13 @@ final class DNSDecoder: ChannelInboundHandler {
             guard let query = messageCache[header.id] else {
                 throw UnknownQuery()
             }
-
             query.promise.succeed(message)
-            messageCache[header.id] = nil
+            query.callback(message, context.eventLoop).map {
+                switch $0 {
+                case .done: self.messageCache[header.id] = nil
+                case .continue: break
+                }
+            }
         } catch {
             messageCache[header.id]?.promise.fail(error)
             messageCache[header.id] = nil
