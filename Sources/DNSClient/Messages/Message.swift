@@ -113,10 +113,14 @@ public struct TXTRecord: DNSResource {
 public struct ARecord: DNSResource {
     public let address: UInt32
     public var stringAddress: String {
-        guard let addr = try? address.socketAddress(port: 0) else {
+        guard let addr = try? self.socketAddress(port: 0) else {
             return ""
         }
         return addr.ipAddress ?? ""
+    }
+
+    public func socketAddress(port: Int) -> SocketAddress? {
+        return try? self.address.socketAddress(port: port)
     }
 
     public static func read(from buffer: inout ByteBuffer, length: Int) -> ARecord? {
@@ -128,10 +132,14 @@ public struct ARecord: DNSResource {
 public struct AAAARecord: DNSResource {
     public let address: [UInt8]
     public var stringAddress: String {
-        guard let addr = try? address.socketAddress(port: 0) else {
+        guard let addr = try? self.socketAddress(port: 0) else {
             return ""
         }
         return addr.ipAddress ?? ""
+    }
+
+    public func socketAddress(port: Int) -> SocketAddress? {
+        return try? self.address.socketAddress(port: port)
     }
 
     public static func read(from buffer: inout ByteBuffer, length: Int) -> AAAARecord? {
