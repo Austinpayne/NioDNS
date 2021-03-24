@@ -223,24 +223,24 @@ extension Array where Element == UInt8 {
         if self.count != 16 {
             throw SocketAddressError.unsupported
         }
-        let size = Int(INET6_ADDRSTRLEN)
-        let buffer = UnsafeMutablePointer<Int8>.allocate(capacity: size)
-        buffer.initialize(repeating: 0, count: size)
-        defer {
-            buffer.deinitialize(count: size)
-            buffer.deallocate()
-        }
 
-        return try self.withUnsafeBytes {
-            let ptr = $0.bindMemory(to: s6_addr.self)[0]
-            var addr = in6_addr(__in6_u: .init(__u6_addr8: ptr))
-            var host = ""
-            if let text = inet_ntop(AF_INET6, &addr, buffer, socklen_t(size)) {
-                host = String(cString: text)
-            }
+        let scopeID: UInt32 = 0 // More info about scope_id/zone_id https://tools.ietf.org/html/rfc6874#page-3
+        let flowinfo: UInt32 = 0 // More info about flowinfo https://tools.ietf.org/html/rfc6437#page-4
 
-            return try SocketAddress(ipAddress: host, port: port)
+        #if os(Linux)
+        let ipAddress = self.withUnsafeBytes { buffer in
+            return buffer.bindMemory(to: in6_addr.__Unnamed_union___in6_u.self).baseAddress!.pointee
         }
+        let sockaddr = sockaddr_in6(sin6_family: sa_family_t(AF_INET6), sin6_port: in_port_t(port), sin6_flowinfo: flowinfo, sin6_addr: in6_addr(__in6_u: ipAddress), sin6_scope_id: scopeID)
+        #else
+        let ipAddress = self.withUnsafeBytes { buffer in
+            return buffer.bindMemory(to: in6_addr.__Unnamed_union___u6_addr.self).baseAddress!.pointee
+        }
+        let size = MemoryLayout<sockaddr_in6>.size
+        let sockaddr = sockaddr_in6(sin6_len: numericCast(size), sin6_family: sa_family_t(AF_INET6), sin6_port: in_port_t(port), sin6_flowinfo: flowinfo, sin6_addr: in6_addr(__u6_addr: ipAddress), sin6_scope_id: scopeID)
+        #endif
+
+        return SocketAddress(sockaddr, host: "")
     }
 }
 
