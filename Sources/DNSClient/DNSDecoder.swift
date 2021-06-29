@@ -13,17 +13,10 @@ final class EnvelopeInboundChannel: ChannelInboundHandler {
 }
 
 final class DNSDecoder: ChannelInboundHandler {
-    let group: EventLoopGroup
-    var messageCache = [UInt16: SentQuery]()
-    var clients = [ObjectIdentifier: DNSClient]()
-    weak var mainClient: DNSClient?
-
-    init(group: EventLoopGroup) {
-        self.group = group
-    }
+    init() {}
 
     public typealias InboundIn = ByteBuffer
-    public typealias OutboundOut = Never
+    public typealias InboundOut = Message
     
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let envelope = self.unwrapInboundIn(data)
@@ -68,19 +61,49 @@ final class DNSDecoder: ChannelInboundHandler {
                 additionalData: try resourceRecords(count: header.additionalRecordCount)
             )
 
-            guard let query = messageCache[header.id] else {
+            context.fireChannelRead(wrapInboundOut(message))
+        } catch {
+            context.fireErrorCaught(error)
+        }
+    }
+
+    func errorCaught(context ctx: ChannelHandlerContext, error: Error) {
+        // TODO
+        _ = ctx.close()
+    }
+}
+
+final class DNSClientCache: ChannelInboundHandler {
+    let group: EventLoopGroup
+    var messageCache = [UInt16: SentQuery]()
+    var clients = [ObjectIdentifier: DNSClient]()
+    weak var mainClient: DNSClient?
+
+    init(group: EventLoopGroup) {
+        self.group = group
+    }
+
+    public typealias InboundIn = Message
+    public typealias OutboundOut = Never
+
+    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let message = self.unwrapInboundIn(data)
+        let id = message.header.id
+
+        do {
+            guard let query = messageCache[id] else {
                 throw UnknownQuery()
             }
             query.promise.succeed(message)
             query.callback(message, context.eventLoop).map {
                 switch $0 {
-                case .done: self.messageCache[header.id] = nil
+                case .done: self.messageCache[id] = nil
                 case .continue: break
                 }
             }
         } catch {
-            messageCache[header.id]?.promise.fail(error)
-            messageCache[header.id] = nil
+            messageCache[id]?.promise.fail(error)
+            messageCache[id] = nil
             context.fireErrorCaught(error)
         }
     }

@@ -1,7 +1,7 @@
 import NIO
 
 public final class DNSClient: Resolver {
-    let dnsDecoder: DNSDecoder
+    let dnsCache: DNSClientCache
     let channel: Channel
     let primaryAddress: SocketAddress
     var loop: EventLoop {
@@ -10,16 +10,16 @@ public final class DNSClient: Resolver {
     // Each query has an ID to keep track of which response belongs to which query
     var messageID: UInt16 = 0
     
-    internal init(channel: Channel, address: SocketAddress, decoder: DNSDecoder) {
+    internal init(channel: Channel, address: SocketAddress, cache: DNSClientCache) {
         self.channel = channel
         self.primaryAddress = address
-        self.dnsDecoder = decoder
+        self.dnsCache = cache
     }
     
     public init(channel: Channel, dnsServerAddress: SocketAddress, context: DNSClientContext) {
         self.channel = channel
         self.primaryAddress = dnsServerAddress
-        self.dnsDecoder = context.decoder
+        self.dnsCache = context.cache
     }
 
     deinit {
@@ -28,10 +28,10 @@ public final class DNSClient: Resolver {
 }
 
 public struct DNSClientContext {
-    internal let decoder: DNSDecoder
+    internal let cache: DNSClientCache
     
     public init(eventLoopGroup: EventLoopGroup) {
-        self.decoder = DNSDecoder(group: eventLoopGroup)
+        self.cache = DNSClientCache(group: eventLoopGroup)
     }
 }
 

@@ -37,12 +37,13 @@ extension DNSClient {
         if let remoteAddress = remoteAddress {
             return channel.pipeline.addHandlers(
                 EnvelopeInboundChannel(),
-                context.decoder,
+                DNSDecoder(),
+                context.cache,
                 EnvelopeOutboundChannel(address: remoteAddress),
                 DNSEncoder()
             )
         } else {
-            return channel.pipeline.addHandlers(context.decoder, DNSEncoder())
+            return channel.pipeline.addHandlers(DNSDecoder(), context.cache, DNSEncoder())
         }
     }
 
@@ -51,7 +52,7 @@ extension DNSClient {
             return group.next().makeFailedFuture(MissingNameservers())
         }
 
-        let dnsDecoder = DNSDecoder(group: group)
+        let dnsCache = DNSClientCache(group: group)
 
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -59,7 +60,8 @@ extension DNSClient {
             .channelInitializer { channel in
                 return channel.pipeline.addHandlers(
                     EnvelopeInboundChannel(),
-                    dnsDecoder,
+                    DNSDecoder(),
+                    dnsCache,
                     EnvelopeOutboundChannel(address: address),
                     DNSEncoder()
                 )
@@ -70,10 +72,10 @@ extension DNSClient {
             let client = DNSClient(
                 channel: channel,
                 address: address,
-                decoder: dnsDecoder
+                cache: dnsCache
             )
 
-            dnsDecoder.mainClient = client
+            dnsCache.mainClient = client
             return client
         }
     }
@@ -92,7 +94,7 @@ extension DNSClient {
     }
 
     private static func connectMulticast(on group: EventLoopGroup, address: SocketAddress, using interface: NIONetworkInterface? = nil) -> EventLoopFuture<DNSClient> {
-        let dnsDecoder = DNSDecoder(group: group)
+        let dnsCache = DNSClientCache(group: group)
 
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -100,7 +102,8 @@ extension DNSClient {
             .channelInitializer { channel in
                 return channel.pipeline.addHandlers(
                     EnvelopeInboundChannel(),
-                    dnsDecoder,
+                    DNSDecoder(),
+                    dnsCache,
                     EnvelopeOutboundChannel(address: address),
                     DNSEncoder()
                 )
@@ -128,10 +131,10 @@ extension DNSClient {
             let client = DNSClient(
                 channel: channel,
                 address: address,
-                decoder: dnsDecoder
+                cache: dnsCache
             )
 
-            dnsDecoder.mainClient = client
+            dnsCache.mainClient = client
             return client
         }
     }
