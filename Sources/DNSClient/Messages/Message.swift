@@ -60,6 +60,9 @@ public enum DNSResourceType: UInt16 {
 
 public typealias QuestionType = DNSResourceType
 
+internal let rrclassMask: UInt16 = 0x7fff
+internal let cacheFlushBit: UInt16 = 0x8000
+
 public enum DataClass: UInt16 {
     case internet = 1
     case chaos = 3
@@ -113,7 +116,7 @@ public struct TXTRecord: DNSResource {
 public struct ARecord: DNSResource {
     public let address: UInt32
     public var stringAddress: String {
-        guard let addr = try? self.socketAddress(port: 0) else {
+        guard let addr = self.socketAddress(port: 0) else {
             return ""
         }
         return addr.ipAddress ?? ""
@@ -131,8 +134,29 @@ public struct ARecord: DNSResource {
 
 public struct AAAARecord: DNSResource {
     public let address: [UInt8]
+
+    init(address: [UInt8]) {
+        self.address = address
+    }
+
+    init(address: SocketAddress) throws {
+        guard case let .v6(ipv6) = address else {
+            throw SocketAddressError.unsupported
+        }
+
+        #if os(Linux)
+        let data = ipv6.address.sin6_addr.__in6_u.__u6_addr8
+        #else
+        let data = ipv6.address.sin6_addr.__u6_addr.__u6_addr8
+        #endif
+        self.address = [ data.0,  data.1,  data.2,  data.3,
+                         data.4,  data.5,  data.6,  data.7,
+                         data.8,  data.9,  data.10, data.11,
+                         data.12, data.13, data.14, data.15 ]
+    }
+
     public var stringAddress: String {
-        guard let addr = try? self.socketAddress(port: 0) else {
+        guard let addr = self.socketAddress(port: 0) else {
             return ""
         }
         return addr.ipAddress ?? ""
@@ -166,6 +190,7 @@ public struct ResourceRecord<Resource: DNSResource> {
     public let dataClass: UInt16
     public let ttl: UInt32
     public var resource: Resource
+    public let cacheFlush: Bool
 }
 
 public protocol DNSResource {

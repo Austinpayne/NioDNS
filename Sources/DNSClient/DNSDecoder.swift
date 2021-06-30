@@ -1,26 +1,14 @@
 import NIO
 
-final class EnvelopeInboundChannel: ChannelInboundHandler {
-    typealias InboundIn = AddressedEnvelope<ByteBuffer>
-    typealias InboundOut = ByteBuffer
-    
-    init() {}
-    
-    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let buffer = unwrapInboundIn(data).data
-        context.fireChannelRead(wrapInboundOut(buffer))
-    }
-}
-
 final class DNSDecoder: ChannelInboundHandler {
     init() {}
 
-    public typealias InboundIn = ByteBuffer
-    public typealias InboundOut = Message
+    public typealias InboundIn = AddressedEnvelope<ByteBuffer>
+    public typealias InboundOut = AddressedEnvelope<Message>
     
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let envelope = self.unwrapInboundIn(data)
-        var buffer = envelope
+        var buffer = envelope.data
 
         guard let header = buffer.readHeader() else {
             context.fireErrorCaught(ProtocolError())
@@ -60,8 +48,8 @@ final class DNSDecoder: ChannelInboundHandler {
                 authorities: try resourceRecords(count: header.authorityCount),
                 additionalData: try resourceRecords(count: header.additionalRecordCount)
             )
-
-            context.fireChannelRead(wrapInboundOut(message))
+            let messageEnvelope = AddressedEnvelope(remoteAddress: envelope.remoteAddress, data: message)
+            context.fireChannelRead(wrapInboundOut(messageEnvelope))
         } catch {
             context.fireErrorCaught(error)
         }
@@ -83,11 +71,12 @@ final class DNSClientCache: ChannelInboundHandler {
         self.group = group
     }
 
-    public typealias InboundIn = Message
+    public typealias InboundIn = AddressedEnvelope<Message>
     public typealias OutboundOut = Never
 
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let message = self.unwrapInboundIn(data)
+        let envelope = self.unwrapInboundIn(data)
+        let message = envelope.data
         let id = message.header.id
 
         do {
@@ -95,7 +84,7 @@ final class DNSClientCache: ChannelInboundHandler {
                 throw UnknownQuery()
             }
             query.promise.succeed(message)
-            query.callback(message, context.eventLoop).map {
+            _ = query.callback(message, context.eventLoop).map {
                 switch $0 {
                 case .done: self.messageCache[id] = nil
                 case .continue: break

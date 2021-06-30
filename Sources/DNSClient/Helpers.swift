@@ -102,7 +102,7 @@ extension ByteBuffer {
         guard
             let labels = readLabels(),
             let typeNumber = readInteger(endianness: .big, as: UInt16.self),
-            let classNumber = readInteger(endianness: .big, as: UInt16.self),
+            let rrclass = readInteger(endianness: .big, as: UInt16.self),
             let ttl = readInteger(endianness: .big, as: UInt32.self),
             let dataLength = readInteger(endianness: .big, as: UInt16.self)
             else {
@@ -127,9 +127,10 @@ extension ByteBuffer {
             return ResourceRecord(
                 domainName: labels,
                 dataType: typeNumber,
-                dataClass: classNumber,
+                dataClass: rrclass & rrclassMask,
                 ttl: ttl,
-                resource: resource
+                resource: resource,
+                cacheFlush: rrclass & cacheFlushBit == cacheFlushBit
             )
         }
 
@@ -184,7 +185,7 @@ extension ByteBuffer {
         guard
             let labels = readLabels(),
             let typeNumber = readInteger(endianness: .big, as: UInt16.self),
-            let classNumber = readInteger(endianness: .big, as: UInt16.self),
+            let rrclass = readInteger(endianness: .big, as: UInt16.self),
             let ttl = readInteger(endianness: .big, as: UInt32.self),
             let dataLength = readInteger(endianness: .big, as: UInt16.self),
             let resource = ByteBuffer.read(from: &self, length: Int(dataLength))
@@ -195,9 +196,10 @@ extension ByteBuffer {
         let record = ResourceRecord(
             domainName: labels,
             dataType: typeNumber,
-            dataClass: classNumber,
+            dataClass: rrclass & rrclassMask,
             ttl: ttl,
-            resource: resource
+            resource: resource,
+            cacheFlush: rrclass & cacheFlushBit == cacheFlushBit
         )
 
         self.moveReaderIndex(forwardBy: Int(dataLength))

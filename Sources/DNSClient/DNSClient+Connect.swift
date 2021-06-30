@@ -36,11 +36,10 @@ extension DNSClient {
     public static func initializeChannel(_ channel: Channel, context: DNSClientContext, asEnvelopeTo remoteAddress: SocketAddress? = nil) -> EventLoopFuture<Void> {
         if let remoteAddress = remoteAddress {
             return channel.pipeline.addHandlers(
-                EnvelopeInboundChannel(),
                 DNSDecoder(),
                 context.cache,
-                EnvelopeOutboundChannel(address: remoteAddress),
-                DNSEncoder()
+                DNSEncoder(),
+                EnvelopeOutboundChannel(address: remoteAddress)
             )
         } else {
             return channel.pipeline.addHandlers(DNSDecoder(), context.cache, DNSEncoder())
@@ -59,11 +58,10 @@ extension DNSClient {
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEPORT), value: 1)
             .channelInitializer { channel in
                 return channel.pipeline.addHandlers(
-                    EnvelopeInboundChannel(),
                     DNSDecoder(),
                     dnsCache,
-                    EnvelopeOutboundChannel(address: address),
-                    DNSEncoder()
+                    DNSEncoder(),
+                    EnvelopeOutboundChannel(address: address)
                 )
         }
 
@@ -101,11 +99,10 @@ extension DNSClient {
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEPORT), value: 1)
             .channelInitializer { channel in
                 return channel.pipeline.addHandlers(
-                    EnvelopeInboundChannel(),
                     DNSDecoder(),
                     dnsCache,
-                    EnvelopeOutboundChannel(address: address),
-                    DNSEncoder()
+                    DNSEncoder(),
+                    EnvelopeOutboundChannel(address: address)
                 )
         }
 
