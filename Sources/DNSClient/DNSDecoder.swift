@@ -125,7 +125,7 @@ final class DNSServerHandler: ChannelInboundHandler {
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let envelope = self.unwrapInboundIn(data)
         do {
-            if let responseEnvelope = try self.handler(envelope) {
+            if let responseEnvelope = try self.handler(envelope), !responseEnvelope.data.answers.isEmpty {
                 context.channel.writeAndFlush(responseEnvelope, promise: nil)
             }
         } catch {
