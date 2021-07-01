@@ -72,6 +72,7 @@ public typealias QuestionType = DNSResourceType
 
 internal let rrclassMask: UInt16 = 0x7fff
 internal let cacheFlushBit: UInt16 = 0x8000
+internal let unicastResponseBit: UInt16 = 0x8000
 
 public enum DataClass: UInt16 {
     case internet = 1
@@ -83,6 +84,20 @@ public struct QuestionSection {
     public let labels: [DNSLabel]
     public let type: QuestionType
     public let questionClass: DataClass
+    public let unicastResponse: Bool
+
+    // unicastResponse only applies to mDNS questions/answers.
+    // For plain unicast DNS it should always be false.
+    init(labels: [DNSLabel],
+                  type: QuestionType,
+                  questionClass: DataClass,
+                  unicastResponse: Bool = false)
+    {
+        self.labels = labels
+        self.type = type
+        self.questionClass = questionClass
+        self.unicastResponse = unicastResponse
+    }
 }
 
 public enum Record {

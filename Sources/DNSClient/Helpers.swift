@@ -88,14 +88,18 @@ extension ByteBuffer {
 
         guard
             let typeNumber = readInteger(endianness: .big, as: UInt16.self),
-            let classNumber = readInteger(endianness: .big, as: UInt16.self),
+            let rrclass = readInteger(endianness: .big, as: UInt16.self),
             let type = QuestionType(rawValue: typeNumber),
-            let dataClass = DataClass(rawValue: classNumber)
+            let dataClass = DataClass(rawValue: rrclass & rrclassMask)
             else {
                 return nil
         }
 
-        return QuestionSection(labels: labels, type: type, questionClass: dataClass)
+        return QuestionSection(
+            labels: labels,
+            type: type,
+            questionClass: dataClass,
+            unicastResponse: rrclass & unicastResponseBit == unicastResponseBit)
     }
 
     mutating func readRecord() -> Record? {

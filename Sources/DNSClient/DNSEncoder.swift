@@ -45,7 +45,8 @@ final class DNSEncoder: ChannelOutboundHandler {
 
             out.writeInteger(0, endianness: .big, as: UInt8.self)
             out.writeInteger(question.type.rawValue, endianness: .big)
-            out.writeInteger(question.questionClass.rawValue, endianness: .big)
+            let rrclass = (question.unicastResponse ? unicastResponseBit : 0x0) | question.questionClass.rawValue
+            out.writeInteger(rrclass, endianness: .big)
         }
 
         for answer in message.answers {
