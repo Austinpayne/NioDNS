@@ -133,3 +133,21 @@ final class DNSServerHandler: ChannelInboundHandler {
         }
     }
 }
+
+final class DNSServerFilter: ChannelInboundHandler {
+    typealias InboundIn = AddressedEnvelope<ByteBuffer>
+    typealias InboundOut = AddressedEnvelope<ByteBuffer>
+
+    let interface: NIONetworkDevice
+
+    init(interface: NIONetworkDevice) {
+        self.interface = interface
+    }
+
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let envelope = self.unwrapInboundIn(data)
+        if interface.interfaceIndex == envelope.metadata?.packetInfo?.interfaceIndex {
+            context.fireChannelRead(data)
+        }
+    }
+}

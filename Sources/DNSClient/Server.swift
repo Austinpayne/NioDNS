@@ -4,8 +4,21 @@ import Foundation
 import NIO
 
 public final class DNSServer {
+    var responders = [MDNSMultiplexer]()
+    
     public init() {}
-    public func listenMulticast(on group: EventLoopGroup, using interface: NIONetworkDevice? = nil, ipv4: Bool = false, handler: @escaping DNSServerHanderFunction) {
+    public func listenMulticast(on group: EventLoopGroup, using interfaces: [NIONetworkDevice] = [], ipv4: Bool = false, handler: @escaping DNSServerHanderFunction) {
+
+        for interface in interfaces {
+            let responder = MDNSMultiplexer()
+            responder.listenMulticast(on: group, using: interface, ipv4: ipv4, handler: handler)
+            responders.append(responder)
+        }
+    }
+}
+
+final class MDNSMultiplexer {
+    func listenMulticast(on group: EventLoopGroup, using interface: NIONetworkDevice, ipv4: Bool = false, handler: @escaping DNSServerHanderFunction) {
         let multicastGroup = try! SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -13,6 +26,7 @@ public final class DNSServer {
             .channelOption(ChannelOptions.receivePacketInfo, value: true)
             .channelInitializer { channel in
                 return channel.pipeline.addHandlers(
+                    DNSServerFilter(interface: interface),
                     DNSDecoder(),
                     DNSServerHandler(handler: handler),
                     DNSEncoder(),
@@ -25,7 +39,7 @@ public final class DNSServer {
                 let channel = channel as! MulticastChannel
                 return channel.joinGroup(multicastGroup, device: interface).map { channel }
             }.flatMap { channel -> EventLoopFuture<Channel> in
-                guard let interface = interface, let address = interface.address else {
+                guard let address = interface.address else {
                     return channel.eventLoop.makeSucceededFuture(channel)
                 }
                 let provider = channel as! SocketOptionProvider
