@@ -48,7 +48,12 @@ final class DNSDecoder: ChannelInboundHandler {
                 authorities: try resourceRecords(count: header.authorityCount),
                 additionalData: try resourceRecords(count: header.additionalRecordCount)
             )
-            let messageEnvelope = AddressedEnvelope(remoteAddress: envelope.remoteAddress, data: message)
+
+            var metaData: AddressedEnvelope<Message>.Metadata? = nil
+            if let meta = envelope.metadata {
+                metaData = AddressedEnvelope<Message>.Metadata(ecnState: meta.ecnState, packetInfo: meta.packetInfo)
+            }
+            let messageEnvelope = AddressedEnvelope(remoteAddress: envelope.remoteAddress, data: message, metadata: metaData)
             context.fireChannelRead(wrapInboundOut(messageEnvelope))
         } catch {
             context.fireErrorCaught(error)
