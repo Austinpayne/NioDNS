@@ -28,7 +28,7 @@ final class MDNSMultiplexer {
                 return channel.pipeline.addHandlers(
                     DNSServerFilter(interface: interface),
                     DNSDecoder(),
-                    DNSServerHandler(handler: handler),
+                    DNSServerHandler(on: multicastGroup, handler: handler),
                     DNSEncoder(),
                     MDNSResponder()
                 )

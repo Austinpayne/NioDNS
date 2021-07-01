@@ -111,11 +111,13 @@ final class DNSClientCache: ChannelInboundHandler {
     }
 }
 
-public typealias DNSServerHanderFunction = (AddressedEnvelope<Message>) throws -> AddressedEnvelope<Message>?
+public typealias DNSServerHanderFunction = (AddressedEnvelope<Message>) throws -> Message?
 final class DNSServerHandler: ChannelInboundHandler {
+    let multicastGroup: SocketAddress
     let handler: DNSServerHanderFunction
 
-    init(handler: @escaping DNSServerHanderFunction) {
+    init(on multicastGroup: SocketAddress, handler: @escaping DNSServerHanderFunction) {
+        self.multicastGroup = multicastGroup
         self.handler = handler
     }
 
@@ -125,7 +127,14 @@ final class DNSServerHandler: ChannelInboundHandler {
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let envelope = self.unwrapInboundIn(data)
         do {
-            if let responseEnvelope = try self.handler(envelope), !responseEnvelope.data.answers.isEmpty {
+            if let response = try self.handler(envelope), !response.answers.isEmpty {
+                let address: SocketAddress
+                if envelope.data.questions.contains(where: {question in question.unicastResponse}) {
+                    address = envelope.remoteAddress
+                } else {
+                    address = multicastGroup
+                }
+                let responseEnvelope = AddressedEnvelope(remoteAddress: address, data: response)
                 context.channel.writeAndFlush(responseEnvelope, promise: nil)
             }
         } catch {
