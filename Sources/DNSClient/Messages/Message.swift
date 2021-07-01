@@ -11,6 +11,16 @@ public struct DNSMessageHeader {
     public let answerCount: UInt16
     public let authorityCount: UInt16
     public let additionalRecordCount: UInt16
+
+    static func Answer(message: Message, answers: UInt16) -> DNSMessageHeader {
+        return DNSMessageHeader(
+            id: message.header.id,
+            options: [.answer, .authorativeAnswer],
+            questionCount: 0,
+            answerCount: answers,
+            authorityCount: 0,
+            additionalRecordCount: 0)
+    }
 }
 
 public struct DNSLabel: ExpressibleByStringLiteral {
@@ -82,6 +92,21 @@ public enum Record {
     case srv(ResourceRecord<SRVRecord>)
     case ptr(ResourceRecord<PTRRecord>)
     case other(ResourceRecord<ByteBuffer>)
+
+    public static func AAAA(domainName: [DNSLabel],
+                            address: SocketAddress,
+                            ttl: UInt32 = 120,
+                            cacheFlush: Bool = false) throws -> Record
+    {
+        return .aaaa(
+            .init(
+                domainName: domainName,
+                dataType: DNSResourceType.aaaa.rawValue,
+                dataClass: DataClass.internet.rawValue,
+                ttl: ttl,
+                resource: try .init(address: address),
+                cacheFlush: cacheFlush))
+    }
 }
 
 public struct TXTRecord: DNSResource {
@@ -299,4 +324,13 @@ public struct Message {
     public let answers: [Record]
     public let authorities: [Record]
     public let additionalData: [Record]
+
+    public static func Answer(message: Message, with answers: [Record]) -> Message {
+        return Message(
+            header: .Answer(message: message, answers: UInt16(answers.count)),
+            questions: [],
+            answers: answers,
+            authorities: [],
+            additionalData: [])
+    }
 }
