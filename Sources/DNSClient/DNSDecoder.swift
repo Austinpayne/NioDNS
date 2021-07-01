@@ -110,3 +110,26 @@ final class DNSClientCache: ChannelInboundHandler {
         messageCache = [:]
     }
 }
+
+public typealias DNSServerHanderFunction = (AddressedEnvelope<Message>) throws -> AddressedEnvelope<Message>?
+final class DNSServerHandler: ChannelInboundHandler {
+    let handler: DNSServerHanderFunction
+
+    init(handler: @escaping DNSServerHanderFunction) {
+        self.handler = handler
+    }
+
+    public typealias InboundIn = AddressedEnvelope<Message>
+    public typealias OutboundOut = Never
+
+    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let envelope = self.unwrapInboundIn(data)
+        do {
+            if let responseEnvelope = try self.handler(envelope) {
+                context.channel.writeAndFlush(responseEnvelope, promise: nil)
+            }
+        } catch {
+            context.fireErrorCaught(error)
+        }
+    }
+}
