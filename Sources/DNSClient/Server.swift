@@ -15,7 +15,8 @@ public final class DNSServer {
                 return channel.pipeline.addHandlers(
                     DNSDecoder(),
                     DNSServerHandler(handler: handler),
-                    DNSEncoder()
+                    DNSEncoder(),
+                    MDNSResponder()
                 )
         }
 

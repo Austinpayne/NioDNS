@@ -72,3 +72,16 @@ final class DNSEncoder: ChannelOutboundHandler {
         return out
     }
 }
+
+final class MDNSResponder: ChannelOutboundHandler {
+    typealias OutboundIn = AddressedEnvelope<Message>
+    typealias OutboundOut = AddressedEnvelope<Message>
+
+    func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
+        // Per RFC 6762 we should delay response by 20-120ms to avoid collisions:
+        // See also https://datatracker.ietf.org/doc/html/rfc6762#section-6
+        context.eventLoop.scheduleTask(in: .milliseconds(Int64.random(in: 20...120))) {
+            context.write(data, promise: promise)
+        }
+    }
+}
