@@ -81,10 +81,10 @@ public enum DataClass: UInt16 {
 }
 
 public struct QuestionSection {
+    public let unicastResponse: Bool
     public let labels: [DNSLabel]
     public let type: QuestionType
     public let questionClass: DataClass
-    public let unicastResponse: Bool
 
     // unicastResponse only applies to mDNS questions/answers.
     // For plain unicast DNS it should always be false.
