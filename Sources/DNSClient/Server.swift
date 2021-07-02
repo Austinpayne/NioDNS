@@ -34,8 +34,7 @@ final class MDNSMultiplexer {
                     DNSServerFilter(interface: interface),
                     DNSDecoder(),
                     DNSServerHandler(on: multicastGroup, handler: handler),
-                    DNSEncoder(),
-                    MDNSResponder()
+                    DNSEncoder()
                 )
         }
 
