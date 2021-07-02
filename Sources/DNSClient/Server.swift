@@ -11,14 +11,19 @@ public final class DNSServer {
 
         for interface in interfaces {
             let responder = MDNSMultiplexer()
-            responder.listenMulticast(on: group, using: interface, ipv4: ipv4, handler: handler)
+            _ = responder.listenMulticast(on: group, using: interface, ipv4: ipv4, handler: handler)
             responders.append(responder)
         }
     }
 }
 
 final class MDNSMultiplexer {
-    func listenMulticast(on group: EventLoopGroup, using interface: NIONetworkDevice, ipv4: Bool = false, handler: @escaping DNSServerHanderFunction) {
+    func listenMulticast(
+        on group: EventLoopGroup,
+        using interface: NIONetworkDevice,
+        ipv4: Bool = false,
+        handler: @escaping DNSServerHanderFunction) -> EventLoopFuture<Channel>
+    {
         let multicastGroup = try! SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -34,7 +39,7 @@ final class MDNSMultiplexer {
                 )
         }
 
-        _ = try! bootstrap.bind(host: ipv4 ? "0.0.0.0" : "::", port: 5353)
+        return bootstrap.bind(host: ipv4 ? "0.0.0.0" : "::", port: 5353)
             .flatMap { channel -> EventLoopFuture<Channel> in
                 let channel = channel as! MulticastChannel
                 return channel.joinGroup(multicastGroup, device: interface).map { channel }
@@ -51,6 +56,6 @@ final class MDNSMultiplexer {
                 case .unixDomainSocket:
                     preconditionFailure("Should not be possible to create a multicast socket on a unix domain socket")
                 }
-            }.wait()
+            }
     }
 }
