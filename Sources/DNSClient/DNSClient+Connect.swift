@@ -65,7 +65,7 @@ extension DNSClient {
                 )
         }
 
-        let ipv4 = address.protocolFamily == PF_INET
+        let ipv4 = address.protocol == .inet
         return bootstrap.bind(host: ipv4 ? "0.0.0.0" : "::", port: 0).map { channel in
             let client = DNSClient(
                 channel: channel,
@@ -78,11 +78,11 @@ extension DNSClient {
         }
     }
 
-    public static func connectMulticast(on group: EventLoopGroup, using interface: NIONetworkInterface? = nil) -> EventLoopFuture<DNSClient> {
+    public static func connectMulticast(on group: EventLoopGroup, using interface: NIONetworkDevice? = nil) -> EventLoopFuture<DNSClient> {
         do {
             var ipv4 = true
             if let interface = interface {
-                ipv4 = interface.address.protocolFamily == PF_INET
+                ipv4 = interface.address?.protocol == .some(.inet)
             }
             let address = try SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
             return connectMulticast(on: group, address: address, using: interface)
@@ -91,7 +91,7 @@ extension DNSClient {
         }
     }
 
-    private static func connectMulticast(on group: EventLoopGroup, address: SocketAddress, using interface: NIONetworkInterface? = nil) -> EventLoopFuture<DNSClient> {
+    private static func connectMulticast(on group: EventLoopGroup, address: SocketAddress, using interface: NIONetworkDevice? = nil) -> EventLoopFuture<DNSClient> {
         let dnsCache = DNSClientCache(group: group)
 
         let bootstrap = DatagramBootstrap(group: group)
@@ -106,21 +106,21 @@ extension DNSClient {
                 )
         }
 
-        let ipv4 = address.protocolFamily == PF_INET
+        let ipv4 = address.protocol == .inet
         return bootstrap.bind(host: ipv4 ? "0.0.0.0" : "::", port: 0)
             .flatMap { channel -> EventLoopFuture<Channel> in
                 let channel = channel as! MulticastChannel
-                return channel.joinGroup(address, interface: interface).map { channel }
+                return channel.joinGroup(address, device: interface).map { channel }
             }.flatMap { channel -> EventLoopFuture<Channel> in
-                guard let interface = interface else {
+                guard let index = interface?.interfaceIndex, let addr = interface?.address else {
                     return channel.eventLoop.makeSucceededFuture(channel)
                 }
                 let provider = channel as! SocketOptionProvider
-                switch interface.address {
+                switch addr {
                 case .v4(let addr):
                     return provider.setIPMulticastIF(addr.address.sin_addr).map { channel }
                 case .v6:
-                    return provider.setIPv6MulticastIF(CUnsignedInt(interface.interfaceIndex)).map { channel }
+                    return provider.setIPv6MulticastIF(CUnsignedInt(index)).map { channel }
                 case .unixDomainSocket:
                     preconditionFailure("Should not be possible to create a multicast socket on a unix domain socket")
                 }
@@ -139,7 +139,7 @@ extension DNSClient {
 
 fileprivate extension Array where Element == SocketAddress {
     var preferred: SocketAddress? {
-        return first(where: { $0.protocolFamily == PF_INET }) ?? first
+        return first(where: { $0.protocol == .inet }) ?? first
     }
 }
 
