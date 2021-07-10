@@ -225,4 +225,19 @@ extension ByteBuffer {
         writeInteger(cacheFlush | classNumber, endianness: .big)
         writeInteger(record.ttl, endianness: .big)
     }
+
+    mutating func writePTRRData(_ ptr: ResourceRecord<PTRRecord>) {
+        writeInteger(ptr.resource.domainName.rdlength, endianness: .big)
+        writeLabel(ptr.resource.domainName)
+    }
+
+    mutating func writeSRVRdata(_ srv: ResourceRecord<SRVRecord>) {
+        let headers = [srv.resource.priority,srv.resource.weight, srv.resource.port]
+        let rdlength = srv.resource.domainName.rdlength + UInt16(MemoryLayout<UInt16>.size) * UInt16(headers.count)
+        writeInteger(rdlength, endianness: .big)
+        for header in headers {
+            writeInteger(header)
+        }
+        writeLabel(srv.resource.domainName)
+    }
 }

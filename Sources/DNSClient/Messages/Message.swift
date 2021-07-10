@@ -23,7 +23,7 @@ public struct DNSMessageHeader {
     }
 }
 
-public struct DNSLabel: ExpressibleByStringLiteral {
+public struct DNSLabel: ExpressibleByStringLiteral, Equatable {
     public let length: UInt8
     
     // Max UInt8.max in length
@@ -122,6 +122,58 @@ public enum Record {
                 resource: try .init(address: address),
                 cacheFlush: cacheFlush))
     }
+
+    public static func SRV(domainName: [DNSLabel],
+                           targetDomainName: [DNSLabel],
+                           port: UInt16,
+                           priority: UInt16 = 0,
+                           weight: UInt16 = 0,
+                           ttl: UInt32 = 120,
+                           cacheFlush: Bool = false) -> Record
+    {
+        return .srv(
+            .init(
+                domainName: domainName,
+                dataType: DNSResourceType.srv.rawValue,
+                dataClass: DataClass.internet.rawValue,
+                ttl: ttl,
+                resource: .init(
+                    priority: priority,
+                    weight: weight,
+                    port: port,
+                    domainName: targetDomainName),
+                cacheFlush: cacheFlush))
+    }
+
+    public static func PTR(sourceDomainName: [DNSLabel],
+                           targetDomainName: [DNSLabel],
+                           ttl: UInt32 = 120,
+                           cacheFlush: Bool = false) -> Record
+    {
+        return .ptr(
+            .init(
+                domainName: sourceDomainName,
+                dataType: DNSResourceType.ptr.rawValue,
+                dataClass: DataClass.internet.rawValue,
+                ttl: ttl,
+                resource: .init(domainName: targetDomainName),
+                cacheFlush: cacheFlush))
+    }
+
+    public static func TXT(domainName: [DNSLabel],
+                           text: String,
+                           ttl: UInt32 = 120,
+                           cacheFlush: Bool = false) -> Record
+    {
+        return .txt(
+            .init(
+                domainName: domainName,
+                dataType: DNSResourceType.txt.rawValue,
+                dataClass: DataClass.internet.rawValue,
+                ttl: ttl,
+                resource: .init(text: text),
+                cacheFlush: cacheFlush))
+    }
 }
 
 public struct TXTRecord: DNSResource {
@@ -129,7 +181,7 @@ public struct TXTRecord: DNSResource {
     public let key: String
     public let value: String
     
-    init?(text: String) {
+    init(text: String) {
         self.text = text
 
         // Key-value TXT records are common but RFC 1035 does not specify the format
@@ -337,6 +389,12 @@ extension Array where Element == DNSLabel {
             return nil
             }.joined(separator: ".")
     }
+
+    var rdlength: UInt16 {
+        // One byte for length of each label + each label
+        return UInt16(self.count) + self.reduce(0) { $0 + UInt16($1.length) }
+    }
+}
 
 extension String {
     public var dnsLabels: [DNSLabel] {

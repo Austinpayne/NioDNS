@@ -53,6 +53,16 @@ final class DNSEncoder: ChannelOutboundHandler {
                 out.writeInteger(UInt16(aaaa.resource.address.count), endianness: .big)
                 out.writeBytes(aaaa.resource.address)
                 break
+            case let .ptr(ptr):
+                out.writeAnswerHeader(ptr)
+                out.writePTRRData(ptr)
+            case let .srv(srv):
+                out.writeAnswerHeader(srv)
+                out.writeSRVRdata(srv)
+            case let .txt(txt):
+                out.writeAnswerHeader(txt)
+                out.writeInteger(UInt16(txt.resource.text.count), endianness: .big)
+                out.writeString(txt.resource.text)
             default:
                 break
             }
