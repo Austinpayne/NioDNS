@@ -38,10 +38,7 @@ final class DNSEncoder: ChannelOutboundHandler {
         out.write(header)
 
         for question in message.questions {
-            for label in question.labels {
-                out.writeInteger(label.length, endianness: .big)
-                out.writeBytes(label.label)
-            }
+            out.writeLabel(question.labels)
 
             out.writeInteger(0, endianness: .big, as: UInt8.self)
             out.writeInteger(question.type.rawValue, endianness: .big)
@@ -52,15 +49,7 @@ final class DNSEncoder: ChannelOutboundHandler {
         for answer in message.answers {
             switch answer {
             case let .aaaa(aaaa):
-                let cacheFlush = aaaa.cacheFlush ? cacheFlushBit : 0x0
-                let classNumber = aaaa.dataClass & rrclassMask
-                for label in aaaa.domainName {
-                    out.writeInteger(label.length, endianness: .big)
-                    out.writeBytes(label.label)
-                }
-                out.writeInteger(aaaa.dataType, endianness: .big)
-                out.writeInteger(cacheFlush | classNumber, endianness: .big)
-                out.writeInteger(aaaa.ttl, endianness: .big)
+                out.writeAnswerHeader(aaaa)
 
                 out.writeInteger(UInt16(aaaa.resource.address.count), endianness: .big)
                 out.writeBytes(aaaa.resource.address)

@@ -224,7 +224,15 @@ public struct PTRRecord: DNSResource {
     }
 }
 
-public struct ResourceRecord<Resource: DNSResource> {
+protocol AnswerRecord {
+    var domainName: [DNSLabel] { get }
+    var dataType: UInt16 { get }
+    var dataClass: UInt16 { get }
+    var ttl: UInt32 { get }
+    var cacheFlush: Bool { get }
+}
+
+public struct ResourceRecord<Resource: DNSResource>: AnswerRecord {
     public let domainName: [DNSLabel]
     public let dataType: UInt16
     public let dataClass: UInt16

@@ -209,4 +209,20 @@ extension ByteBuffer {
         self.moveReaderIndex(forwardBy: Int(dataLength))
         return record
     }
+
+    mutating func writeLabel(_ labels: [DNSLabel], compressed: Bool = false) {
+        for label in labels {
+            writeInteger(label.length, endianness: .big)
+            writeBytes(label.label)
+        }
+    }
+
+    mutating func writeAnswerHeader(_ record: AnswerRecord) {
+        writeLabel(record.domainName)
+        let cacheFlush = record.cacheFlush ? cacheFlushBit : 0x0
+        let classNumber = record.dataClass & rrclassMask
+        writeInteger(record.dataType, endianness: .big)
+        writeInteger(cacheFlush | classNumber, endianness: .big)
+        writeInteger(record.ttl, endianness: .big)
+    }
 }
