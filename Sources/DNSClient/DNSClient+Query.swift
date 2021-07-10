@@ -65,7 +65,7 @@ extension DNSClient {
         }
 
         let header = DNSMessageHeader(id: messageID, options: options, questionCount: 1, answerCount: 0, authorityCount: 0, additionalRecordCount: 0)
-        let labels = address.split(separator: ".").map(String.init).map(DNSLabel.init)
+        let labels = address.dnsLabels
         let question = QuestionSection(labels: labels, type: type, questionClass: .internet)
         let message = Message(header: header, questions: [question], answers: [], authorities: [], additionalData: [])
 

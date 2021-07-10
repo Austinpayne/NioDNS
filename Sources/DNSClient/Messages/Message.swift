@@ -337,6 +337,12 @@ extension Array where Element == DNSLabel {
             return nil
             }.joined(separator: ".")
     }
+
+extension String {
+    public var dnsLabels: [DNSLabel] {
+        // Empty string adds a null terminator byte
+        return self.split(separator: ".").map({ DNSLabel(stringLiteral: String($0)) }) + [""]
+    }
 }
 
 // TODO: https://tools.ietf.org/html/rfc1035 section 4.1.4 compression
