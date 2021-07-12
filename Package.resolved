@@ -3,10 +3,10 @@
     "pins": [
       {
         "package": "swift-nio",
-        "repositoryURL": "https://github.com/Austinpayne/swift-nio.git",
+        "repositoryURL": "https://github.com/apple/swift-nio.git",
         "state": {
-          "branch": "feature/dgram-pktinfo",
-          "revision": "fe2032680c1a60c11d00a1dff808086ec0703eac",
+          "branch": null,
+          "revision": "ffa6a871f7520b4208f56fe97d1ac2bda545b237",
           "version": null
         }
       }

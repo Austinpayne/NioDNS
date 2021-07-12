@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/Austinpayne/swift-nio.git", .branch("feature/dgram-pktinfo")),
+        .package(url: "https://github.com/apple/swift-nio.git", .revision("ffa6a871f7520b4208f56fe97d1ac2bda545b237")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
