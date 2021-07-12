@@ -7,11 +7,11 @@ public final class DNSServer {
     var responders = [MDNSMultiplexer]()
     
     public init() {}
-    public func listenMulticast(on group: EventLoopGroup, using interfaces: [NIONetworkDevice] = [], ipv4: Bool = false, handler: @escaping DNSServerHanderFunction) {
+    public func listenMulticast(on group: EventLoopGroup, using interfaces: [NIONetworkDevice] = [], handler: @escaping DNSServerHanderFunction) {
 
         for interface in interfaces {
             let responder = MDNSMultiplexer()
-            _ = responder.listenMulticast(on: group, using: interface, ipv4: ipv4, handler: handler)
+            _ = responder.listenMulticast(on: group, using: interface, handler: handler)
             responders.append(responder)
         }
     }
@@ -23,9 +23,9 @@ final class MDNSMultiplexer {
     func listenMulticast(
         on group: EventLoopGroup,
         using interface: NIONetworkDevice,
-        ipv4: Bool = false,
         handler: @escaping DNSServerHanderFunction) -> EventLoopFuture<Void>
     {
+        let ipv4 = interface.address?.protocol == .some(.inet6) ? false : true
         let multicastGroup = try! SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)

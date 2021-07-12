@@ -100,6 +100,7 @@ extension DNSClient {
             .channelInitializer { channel in
                 return channel.pipeline.addHandlers(
                     DNSDecoder(),
+                    DNSClientFilter(),
                     dnsCache,
                     DNSEncoder(),
                     EnvelopeOutboundChannel(address: address)
@@ -107,7 +108,7 @@ extension DNSClient {
         }
 
         let ipv4 = address.protocol == .inet
-        return bootstrap.bind(host: ipv4 ? "0.0.0.0" : "::", port: 0)
+        return bootstrap.bind(host: ipv4 ? "0.0.0.0" : "::", port: 5353)
             .flatMap { channel -> EventLoopFuture<Channel> in
                 let channel = channel as! MulticastChannel
                 return channel.joinGroup(address, device: interface).map { channel }
