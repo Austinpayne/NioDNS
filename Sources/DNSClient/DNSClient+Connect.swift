@@ -78,20 +78,20 @@ extension DNSClient {
         }
     }
 
-    public static func connectMulticast(on group: EventLoopGroup, using interface: NIONetworkDevice? = nil) -> EventLoopFuture<DNSClient> {
+    public static func connectMulticast(on group: EventLoopGroup, using interface: NIONetworkDevice? = nil, ignoreSelf: Bool = false) -> EventLoopFuture<DNSClient> {
         do {
             var ipv4 = true
             if let interface = interface {
                 ipv4 = interface.address?.protocol == .some(.inet)
             }
             let address = try SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
-            return connectMulticast(on: group, address: address, using: interface)
+            return connectMulticast(on: group, address: address, using: interface, ignoreSelf: ignoreSelf)
         } catch {
             return group.next().makeFailedFuture(error)
         }
     }
 
-    private static func connectMulticast(on group: EventLoopGroup, address: SocketAddress, using interface: NIONetworkDevice? = nil) -> EventLoopFuture<DNSClient> {
+    private static func connectMulticast(on group: EventLoopGroup, address: SocketAddress, using interface: NIONetworkDevice? = nil, ignoreSelf: Bool = false) -> EventLoopFuture<DNSClient> {
         let dnsCache = DNSClientCache(group: group)
 
         let bootstrap = DatagramBootstrap(group: group)
@@ -117,11 +117,16 @@ extension DNSClient {
                     return channel.eventLoop.makeSucceededFuture(channel)
                 }
                 let provider = channel as! SocketOptionProvider
+                let ignore: CUnsignedChar = ignoreSelf ? 0 : 1
                 switch addr {
                 case .v4(let addr):
-                    return provider.setIPMulticastIF(addr.address.sin_addr).map { channel }
+                    return provider.setIPMulticastIF(addr.address.sin_addr).flatMap {
+                        provider.setIPMulticastLoop(ignore)
+                    }.map { channel }
                 case .v6:
-                    return provider.setIPv6MulticastIF(CUnsignedInt(index)).map { channel }
+                    return provider.setIPv6MulticastIF(CUnsignedInt(index)).flatMap {
+                        provider.setIPv6MulticastLoop(CUnsignedInt(ignore))
+                    }.map { channel }
                 case .unixDomainSocket:
                     preconditionFailure("Should not be possible to create a multicast socket on a unix domain socket")
                 }

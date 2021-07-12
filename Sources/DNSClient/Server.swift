@@ -7,11 +7,11 @@ public final class DNSServer {
     var responders = [MDNSMultiplexer]()
     
     public init() {}
-    public func listenMulticast(on group: EventLoopGroup, using interfaces: [NIONetworkDevice] = [], handler: @escaping DNSServerHanderFunction) {
+    public func listenMulticast(on group: EventLoopGroup, using interfaces: [NIONetworkDevice] = [], ignoreSelf: Bool = false, handler: @escaping DNSServerHanderFunction) {
 
         for interface in interfaces {
             let responder = MDNSMultiplexer()
-            _ = responder.listenMulticast(on: group, using: interface, handler: handler)
+            _ = responder.listenMulticast(on: group, using: interface, ignoreSelf: ignoreSelf, handler: handler)
             responders.append(responder)
         }
     }
@@ -23,6 +23,7 @@ final class MDNSMultiplexer {
     func listenMulticast(
         on group: EventLoopGroup,
         using interface: NIONetworkDevice,
+        ignoreSelf: Bool = false,
         handler: @escaping DNSServerHanderFunction) -> EventLoopFuture<Void>
     {
         let ipv4 = interface.address?.protocol == .some(.inet6) ? false : true
@@ -49,11 +50,16 @@ final class MDNSMultiplexer {
                     return channel.eventLoop.makeSucceededFuture(channel)
                 }
                 let provider = channel as! SocketOptionProvider
+                let ignore: CUnsignedChar = ignoreSelf ? 0 : 1
                 switch address {
                 case .v4(let addr):
-                    return provider.setIPMulticastIF(addr.address.sin_addr).map { channel }
+                    return provider.setIPMulticastIF(addr.address.sin_addr).flatMap {
+                        provider.setIPMulticastLoop(ignore)
+                    }.map { channel }
                 case .v6:
-                    return provider.setIPv6MulticastIF(CUnsignedInt(interface.interfaceIndex)).map { channel }
+                    return provider.setIPv6MulticastIF(CUnsignedInt(interface.interfaceIndex)).flatMap {
+                        provider.setIPv6MulticastLoop(CUnsignedInt(ignore))
+                    }.map { channel }
                 case .unixDomainSocket:
                     preconditionFailure("Should not be possible to create a multicast socket on a unix domain socket")
                 }

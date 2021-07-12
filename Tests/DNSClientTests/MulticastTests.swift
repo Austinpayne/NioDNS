@@ -30,7 +30,6 @@ final class MulticastTests: XCTestCase {
         let server = DNSServer()
         server.listenMulticast(on: group, using: [interface]) { envelope in
             let msg = envelope.data
-            print("Got message")
             XCTAssertEqual(msg.questions.count, 1)
             return Message.Answer(
                 message: msg,
