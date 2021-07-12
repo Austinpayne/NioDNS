@@ -18,11 +18,13 @@ public final class DNSServer {
 }
 
 final class MDNSMultiplexer {
+    private var channel: Channel? = nil
+
     func listenMulticast(
         on group: EventLoopGroup,
         using interface: NIONetworkDevice,
         ipv4: Bool = false,
-        handler: @escaping DNSServerHanderFunction) -> EventLoopFuture<Channel>
+        handler: @escaping DNSServerHanderFunction) -> EventLoopFuture<Void>
     {
         let multicastGroup = try! SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
         let bootstrap = DatagramBootstrap(group: group)
@@ -55,6 +57,12 @@ final class MDNSMultiplexer {
                 case .unixDomainSocket:
                     preconditionFailure("Should not be possible to create a multicast socket on a unix domain socket")
                 }
+            }.map { [weak self] in
+                self?.channel = $0
             }
+    }
+
+    deinit {
+        _ = channel?.close()
     }
 }
