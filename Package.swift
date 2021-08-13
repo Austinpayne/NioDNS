@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/apple/swift-nio.git", .revision("ffa6a871f7520b4208f56fe97d1ac2bda545b237")),
+        .package(url: "https://github.com/apple/swift-nio.git", .exact("2.31.0")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -24,6 +24,10 @@ let package = Package(
         .target(
             name: "DNSClient",
             dependencies: ["NIO"]
+        ),
+        .target(
+            name: "DNSServerMain",
+            dependencies: ["DNSClient", "NIO"]
         )
     ]
 )
