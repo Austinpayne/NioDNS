@@ -7,12 +7,21 @@ public final class DNSServer {
     var responders = [MDNSMultiplexer]()
     
     public init() {}
-    public func listenMulticast(on group: EventLoopGroup, using interfaces: [NIONetworkDevice] = [], ignoreSelf: Bool = false, handler: @escaping DNSServerHanderFunction) {
-
-        for interface in interfaces {
-            let responder = MDNSMultiplexer()
-            _ = responder.listenMulticast(on: group, using: interface, ignoreSelf: ignoreSelf, handler: handler)
-            responders.append(responder)
+    public func listenMulticast(
+        on group: EventLoopGroup,
+        using interfaces: [NIONetworkDevice] = [],
+        ignoreSelf: Bool = false,
+        handler: @escaping DNSServerHanderFunction
+    ) -> EventLoopFuture<Void> {
+        EventLoopFuture.whenAllSucceed(interfaces.map { interface in
+            return MDNSMultiplexer().listenMulticast(
+                on: group,
+                using: interface,
+                ignoreSelf: ignoreSelf,
+                handler: handler
+            )
+        }, on: group.any()).map {
+            self.responders.append(contentsOf: $0)
         }
     }
 }
@@ -24,8 +33,8 @@ final class MDNSMultiplexer {
         on group: EventLoopGroup,
         using interface: NIONetworkDevice,
         ignoreSelf: Bool = false,
-        handler: @escaping DNSServerHanderFunction) -> EventLoopFuture<Void>
-    {
+        handler: @escaping DNSServerHanderFunction
+    ) -> EventLoopFuture<MDNSMultiplexer> {
         let ipv4 = interface.address?.protocol == .some(.inet6) ? false : true
         let multicastGroup = try! SocketAddress(ipAddress: ipv4 ? "224.0.0.251" : "ff02::fb", port: 5353)
         let bootstrap = DatagramBootstrap(group: group)
@@ -63,8 +72,9 @@ final class MDNSMultiplexer {
                 case .unixDomainSocket:
                     preconditionFailure("Should not be possible to create a multicast socket on a unix domain socket")
                 }
-            }.map { [weak self] in
-                self?.channel = $0
+            }.map {
+                self.channel = $0
+                return self
             }
     }
 

@@ -28,7 +28,7 @@ final class MulticastTests: XCTestCase {
 
         // Listen for and respond to PTR requests
         let server = DNSServer()
-        server.listenMulticast(on: group, using: [interface]) { envelope in
+        try server.listenMulticast(on: group, using: [interface]) { envelope in
             let msg = envelope.data
             XCTAssertEqual(msg.questions.count, 1)
             return Message.Answer(
@@ -37,7 +37,7 @@ final class MulticastTests: XCTestCase {
                         sourceDomainName: msg.questions[0].labels,
                         targetDomainName: expectedServer.dnsLabels,
                         ttl: 10)])
-        }
+        }.wait()
 
         // Do PTR service request
         let exp = XCTestExpectation(description: "Expecting mDNS reply")
